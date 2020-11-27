@@ -1,0 +1,28 @@
+image: maven:3.5-jdk-8
+pipelines:
+  default:
+    - step:
+        caches:
+          - maven
+        script:
+          - mvn -V -B verify -Drun.qa=true
+  branches:
+    master:
+      - step:
+          caches:
+            - maven
+          script:
+          - openssl aes-256-cbc -pass pass:$OPENSSL_PWD -in private-key.gpg.enc -out private-key.gpg -d
+          - gpg --passphrase $GPG_PWD --batch --no-tty --import private-key.gpg
+          - mvn -V -B deploy -Psources,javadoc,gpg -Drun.qa=true -s bitbucket-settings.xml
+  custom:
+    release:
+      - step:
+          caches:
+            - maven
+          script:
+          - openssl aes-256-cbc -pass pass:$OPENSSL_PWD -in private-key.gpg.enc -out private-key.gpg -d
+          - gpg --passphrase $GPG_PWD --batch --no-tty --import private-key.gpg
+          - git config --global user.email "bitbucket.pipeline.oss@hiq.se"
+          - git config --global user.name "bitbucket.pipeline"
+          - mvn -V -B release:prepare release:perform -Psources,javadoc,gpg -Dusername=$GIT_USER -Dpassword=$GIT_PWD -s bitbucket-settings.xml
